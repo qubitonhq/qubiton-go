@@ -232,11 +232,22 @@ type TaxResponse struct {
 // ── Tax Format Validation ─────────────────────────────────────────────────
 
 // TaxFormatRequest is the input for ValidateTaxFormat.
+// TaxFormatRequest is the input to ValidateTaxFormat.
+//
+// Field names mirror the canonical TaxFormatValidationRequest
+// (identityNumber, identityNumberType, countryIso2). Older field
+// names (taxNumber, taxType, country) were renamed during the
+// upstream AutoMapper -> Facet migration; the wire JSON keys are now:
+//
+//	{"identityNumber":"…","identityNumberType":"…","countryIso2":"US"}
 type TaxFormatRequest struct {
 	BaseRequest
-	TaxNumber string `json:"taxNumber"`
-	TaxType   string `json:"taxType"`
-	Country   string `json:"country"`
+	// IdentityNumber is the tax ID number to validate. Required.
+	IdentityNumber string `json:"identityNumber"`
+	// IdentityNumberType is the tax/identity number type (e.g. "TIN", "VAT", "ABN", "EIN"). Required.
+	IdentityNumberType string `json:"identityNumberType"`
+	// CountryIso2 is ISO 3166-1 alpha-2, alpha-3, or full country name. Required.
+	CountryIso2 string `json:"countryIso2"`
 }
 
 // TaxFormatResponse is the output from ValidateTaxFormat.
@@ -1715,17 +1726,25 @@ type CreditBureauCompany struct {
 // ── ESG Score ─────────────────────────────────────────────────────────────
 
 // ESGRequest is the input for LookupESGScore. Mirrors the canonical
-// ESGScoringRequest : BaseRequest from smartvm.BusinessEntities.Client.API.API.ESG —
-// the server only consumes CompanyName and ESGId (Country/Domain previously
-// listed here were fabricated and are dropped).
+// ESGScoringRequest from smartvm.BusinessEntities.Client.API.API.ESG —
+// the body consumes CompanyName and ESGId.
 //
-// Acronym JSON tag ESGId→esgId per .NET CamelCase JsonNamingPolicy
-// (empirically verified against System.Text.Json with .NET 10 — consecutive
-// leading capitals are fully lower-cased).
+// Country and Domain are bound on the server as [FromQuery] (not body)
+// and are serialised by LookupESGScore into the URL query string with
+// percent-encoding. They use json:"-" so json.Marshal omits them from
+// the request body.
+//
+// Acronym JSON tag ESGId→esgId per the upstream CamelCase naming policy
+// (empirically verified against System.Text.Json — consecutive leading
+// capitals are fully lower-cased).
 type ESGRequest struct {
 	BaseRequest
 	CompanyName string `json:"companyName,omitempty"`
 	ESGId       int    `json:"esgId,omitempty"`
+	// Country is sent as a query-string parameter, not body. ISO 3166-1 alpha-2/3 or full name. Optional.
+	Country string `json:"-"`
+	// Domain is sent as a query-string parameter, not body. e.g. "example.com". Optional.
+	Domain string `json:"-"`
 }
 
 // ESGResponse is one entry in the array returned by /api/esg/Scores.

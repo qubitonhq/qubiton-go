@@ -1077,7 +1077,22 @@ func (c *Client) LookupCreditAnalysis(ctx context.Context, req CreditAnalysisReq
 // LookupESGScore looks up ESG (Environmental, Social, Governance) scores.
 // The server returns an array (one entry per scoring provider).
 func (c *Client) LookupESGScore(ctx context.Context, req ESGRequest) ([]ESGResponse, error) {
-	body, err := c.doRequest(ctx, http.MethodPost, "/api/esg/Scores", req)
+	// country and domain are bound as [FromQuery] on the API controller (not body),
+	// so they're serialised into the URL here with percent-encoding. ESGRequest's
+	// Country / Domain fields use json:"-" so json.Marshal omits them from the body.
+	path := "/api/esg/Scores"
+	qs := url.Values{}
+	if req.Country != "" {
+		qs.Set("country", req.Country)
+	}
+	if req.Domain != "" {
+		qs.Set("domain", req.Domain)
+	}
+	if encoded := qs.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	body, err := c.doRequest(ctx, http.MethodPost, path, req)
 	if err != nil {
 		return nil, err
 	}
